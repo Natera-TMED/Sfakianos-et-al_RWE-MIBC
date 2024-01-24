@@ -1,0 +1,2519 @@
+---
+title: "RWE MIBC Clinical analysis_Final Output 01232024"
+output: html_notebook
+---
+library(swimplot)
+library(grid)
+library(gtable)
+library(readr) 
+library(mosaic)
+library(dplyr)
+library(survival) 
+library(survminer) 
+library(ggplot2)
+library(scales)
+library(coxphf)
+library(ggthemes)
+library(tidyverse)
+library(gtsummary)
+library(flextable)
+library(parameters)
+library(car)
+library(ComplexHeatmap)
+library(tidyverse)
+library(readxl)
+library(survival)
+library(janitor)
+library(DT)
+library(rms)
+
+#ctDNA positivity by stage and window
+```{r}
+#Number of Pts at the pre-cystectomy - percentage positivity by stage
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_datadf <- as.data.frame(circ_data)
+
+total_preop <- sum(!is.na(circ_data$MRD_anytimepreSx))
+print(total_preop)
+circ_data$MRD_anytimepreSx <- as.factor(circ_data$MRD_anytimepreSx)
+cont_table_preop <- table(circ_data$cStage.Group, circ_data$MRD_anytimepreSx)
+print(cont_table_preop)
+
+#Positivity Statistics for pre-cystectomy timepoints
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$cStage.Group <- factor(circ_data$cStage.Group, levels = c("1", "2", "3"), labels = c("CIS/I", "II", "III"))
+contingency_table <- table(circ_data$MRD_anytimepreSx, circ_data$cStage.Group)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA pre-RC (n = 65)", x = "ctDNA", y = "Patients (%)", fill = "Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("CIS/I" = "lightblue3", "II" = "orange", "III" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$cStage.Group <- factor(circ_data$cStage.Group, levels = c("1", "2", "3"), labels = c("CIS/I", "II", "III"))
+contingency_table <- table(circ_data$cStage.Group, circ_data$MRD_anytimepreSx)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA pre-RC (n = 65)", x = "ctDNA", y = "Patients (%)", fill = "Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("ctDNA(-)" = "lightblue3", "ctDNA(+)" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$cStage.Group!="3",]
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$cStage.Group <- factor(circ_data$cStage.Group, levels = c("1", "2"), labels = c("CIS/I", "II"))
+contingency_table <- table(circ_data$cStage.Group, circ_data$MRD_anytimepreSx)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$cStage.Group!="2",]
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$cStage.Group <- factor(circ_data$cStage.Group, levels = c("1", "3"), labels = c("CIS/I", "III"))
+contingency_table <- table(circ_data$cStage.Group, circ_data$MRD_anytimepreSx)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$cStage.Group!="1",]
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$cStage.Group <- factor(circ_data$cStage.Group, levels = c("2", "3"), labels = c("II", "III"))
+contingency_table <- table(circ_data$cStage.Group, circ_data$MRD_anytimepreSx)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+#Number of Pts at the MRD Window - percentage positivity by stage
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_datadf <- as.data.frame(circ_data)
+
+total_mrd <- sum(!is.na(circ_data$MRD_postSx.MRD.Window))
+print(total_mrd)
+circ_data$MRD_postSx.MRD.Window <- as.factor(circ_data$MRD_postSx.MRD.Window)
+cont_table_mrd <- table(circ_data$pStage.Group, circ_data$MRD_postSx.MRD.Window)
+print(cont_table_mrd)
+
+#Positivity Statistics for MRD Window timepoints
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2", "3"), labels = c("CIS/I", "II", "III"))
+contingency_table <- table(circ_data$MRD_postSx.MRD.Window, circ_data$pStage.Group)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA MRD Window (n = 100)", x = "ctDNA", y = "Patients (%)", fill = "Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("CIS/I" = "lightblue3", "II" = "orange", "III" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2", "3"), labels = c("CIS/I", "II", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD_postSx.MRD.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA MRD Window (n = 100)", x = "ctDNA", y = "Patients (%)", fill = "Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("ctDNA(-)" = "lightblue3", "ctDNA(+)" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data <- circ_data[circ_data$pStage.Group!="3",]
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2"), labels = c("CIS/I", "II"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD_postSx.MRD.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data <- circ_data[circ_data$pStage.Group!="2",]
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "3"), labels = c("CIS/I", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD_postSx.MRD.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data <- circ_data[circ_data$pStage.Group!="1",]
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("2", "3"), labels = c("II", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD_postSx.MRD.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+#Number of Pts at the Surveillance Window - percentage positivity by stage
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+
+total_surv <- sum(!is.na(circ_data$MRD.Surveillance.Window))
+print(total_surv)
+circ_data$MRD.Surveillance.Window <- as.factor(circ_data$MRD.Surveillance.Window)
+cont_table_surv <- table(circ_data$pStage.Group, circ_data$MRD.Surveillance.Window)
+print(cont_table_surv)
+
+#Positivity Statistics for Surveillance Window timepoints
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2", "3"), labels = c("CIS/I", "II", "III"))
+contingency_table <- table(circ_data$MRD.Surveillance.Window, circ_data$pStage.Group)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA Surveillance Window (n = 117)", x = "ctDNA", y = "Patients (%)", fill = "Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("CIS/I" = "lightblue3", "II" = "orange", "III" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2", "3"), labels = c("CIS/I", "II", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD.Surveillance.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA Surveillance Window (n = 117)", x = "ctDNA", y = "Patients (%)", fill = "Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("ctDNA(-)" = "lightblue3", "ctDNA(+)" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_data <- circ_data[circ_data$pStage.Group!="3",]
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2"), labels = c("CIS/I", "II"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD.Surveillance.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_data <- circ_data[circ_data$pStage.Group!="2",]
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "3"), labels = c("CIS/I", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD.Surveillance.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_data <- circ_data[circ_data$pStage.Group!="1",]
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("2", "3"), labels = c("II", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD.Surveillance.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+#Number of Pts with ctDNA anytime post-op - percentage positivity by stage
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimeSx))
+circ_datadf <- as.data.frame(circ_data)
+
+total_anytime <- sum(!is.na(circ_data$MRD_anytimeSx))
+print(total_anytime)
+circ_data$MRD_anytimeSx <- as.factor(circ_data$MRD_anytimeSx)
+cont_table_anytime <- table(circ_data$pStage.Group, circ_data$MRD_anytimeSx)
+print(cont_table_anytime)
+
+#Positivity Statistics for anytime post-cystectomy timepoints
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimeSx))
+circ_data$MRD_anytimeSx <- factor(circ_data$MRD_anytimeSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2", "3"), labels = c("CIS/I", "II", "III"))
+contingency_table <- table(circ_data$MRD_anytimeSx, circ_data$pStage.Group)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA anytime post-cystectomy (n = 167)", x = "ctDNA", y = "Patients (%)", fill = "Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("CIS/I" = "lightblue3", "II" = "orange", "III" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimeSx))
+circ_data$MRD_anytimeSx <- factor(circ_data$MRD_anytimeSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2", "3"), labels = c("CIS/I", "II", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD_anytimeSx)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA anytime post-cystectomy (n = 167)", x = "ctDNA", y = "Patients (%)", fill = "Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("ctDNA(-)" = "lightblue3", "ctDNA(+)" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimeSx))
+circ_data <- circ_data[circ_data$pStage.Group!="3",]
+circ_data$MRD_anytimeSx <- factor(circ_data$MRD_anytimeSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "2"), labels = c("CIS/I", "II"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD_anytimeSx)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimeSx))
+circ_data <- circ_data[circ_data$pStage.Group!="2",]
+circ_data$MRD_anytimeSx <- factor(circ_data$MRD_anytimeSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("1", "3"), labels = c("CIS/I", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD_anytimeSx)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimeSx))
+circ_data <- circ_data[circ_data$pStage.Group!="1",]
+circ_data$MRD_anytimeSx <- factor(circ_data$MRD_anytimeSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group <- factor(circ_data$pStage.Group, levels = c("2", "3"), labels = c("II", "III"))
+contingency_table <- table(circ_data$pStage.Group, circ_data$MRD_anytimeSx)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+```
+
+#Radiological Recurrence rates by stage and window
+```{r}
+#Number of Pts at the Post-TURBT - percentage of radiological recurrence by stage
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_datadf <- as.data.frame(circ_data)
+
+total_preop <- sum(!is.na(circ_data$RecStatus))
+print(total_preop)
+circ_data$RecStatus <- as.factor(circ_data$RecStatus)
+cont_table_preop <- table(circ_data$cStage.Group, circ_data$RecStatus)
+print(cont_table_preop)
+
+#Number of Pts at the MRD Window - percentage of radiological recurrence by stage
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_datadf <- as.data.frame(circ_data)
+
+total_mrd <- sum(!is.na(circ_data$RecStatus))
+print(total_mrd)
+circ_data$RecStatus <- as.factor(circ_data$RecStatus)
+cont_table_mrd <- table(circ_data$pStage.Group, circ_data$RecStatus)
+print(cont_table_mrd)
+
+#Number of Pts at the Surveillance Window - percentage of radiological recurrence by stage
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+
+total_surv <- sum(!is.na(circ_data$RecStatus))
+print(total_surv)
+circ_data$RecStatus <- as.factor(circ_data$RecStatus)
+cont_table_surv <- table(circ_data$pStage.Group, circ_data$RecStatus)
+print(cont_table_surv)
+
+#Number of Pts with ctDNA anytime post-op - percentage of radiological recurrence by stage
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimeSx))
+circ_datadf <- as.data.frame(circ_data)
+
+total_anytime <- sum(!is.na(circ_data$RecStatus))
+print(total_anytime)
+circ_data$RecStatus <- as.factor(circ_data$RecStatus)
+cont_table_anytime <- table(circ_data$pStage.Group, circ_data$RecStatus)
+print(cont_table_anytime)
+```
+
+#Summary Table
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+
+##Create a summary table for specific variables
+circ_data_subset <- circ_data %>%
+  select(
+    Gender,
+    Age,
+    cStage.Group,
+    MSI.status,
+    TMB.status,
+    histology_subtype,
+    TNM.Detailed,
+    NAC,
+    NAC.Details,
+    pStage.Group,
+    pN.Group,
+    Downstaging,
+    ACT.Details,
+    RC.ctDNA.weeks,
+    LeadTimeInterval,
+    RecStatus,
+    VitalStatus,
+    RFS_months,
+    OS_months,
+    FU_months) %>%
+  mutate(
+    Gender = factor(Gender, levels = c("Male", "Female"), labels = c("Male", "Female")),
+    Age = as.numeric(Age),
+    cStage.Group = factor(cStage.Group, levels = c(1, 2, 3, 4), labels = c("0/I", "II", "III", "IV")),
+    MSI.status = factor(MSI.status, levels = c("MSS", "MSI-Hi"),   ),
+    TMB.status = factor(TMB.status, levels = c("TMB-Low", "TMB-High"), labels = c("TMB Low", "TMB High")),
+    histology_subtype = factor(histology_subtype, levels = c("Pure", "VH"), labels = c("Pure Urothelial", "Variant Hisgtology")),
+    TNM.Detailed = factor(TNM.Detailed),
+    NAC = factor(NAC, levels = c(0, 1), labels = c("No", "Yes")),
+    NAC.Details = factor(NAC.Details),
+    pStage.Group = factor(pStage.Group, levels = c(1, 2, 3), labels = c("0/0is/I", "II", "III")),
+    pN.Group = factor(pN.Group, levels = c(0, 1), labels = c("N0 (no nodal involvement)", "Nn" = "Nn (nodal involvement)")),
+    Downstaging = factor(Downstaging, levels = c(0, 1), labels = c("Downstage", "Stable/Upstage")),
+    ACT.Details = factor(ACT.Details),
+    RC.ctDNA.weeks = as.numeric(RC.ctDNA.weeks),
+    LeadTimeInterval = as.numeric(LeadTimeInterval),
+    RecStatus = factor(RecStatus, levels = c(0, 1), labels = c("No Recurrence", "Recurrence")),
+    VitalStatus = factor(VitalStatus, levels = c(0, 1), labels = c("Alive", "Deceased")),
+    RFS_months = as.numeric(RFS_months),
+    OS_months = as.numeric(OS_months),
+    FU_months = as.numeric(FU_months))
+table1 <- circ_data_subset %>%
+  tbl_summary(
+    statistic = list(
+      all_continuous() ~ "{median} ({min} - {max})",
+      all_categorical() ~ "{n} ({p}%)"),
+    label = list(
+      Gender ~ "Gender",
+      Age ~ "Age",
+      cStage.Group ~ "Clinical stage - TURBT")) %>%
+  bold_labels()
+table1
+fit1 <- as_flex_table(
+  table1,
+  include = everything(),
+  return_calls = FALSE,
+  strip_md_bold = TRUE)
+fit1
+save_as_docx(fit1, path= "~/Downloads/table1.docx")
+```
+
+
+
+#Overview plot
+```{r}
+library(swimplot)
+library(ggplot2)
+library(grid)
+library(gtable)
+
+#Overview plot - Stage I
+rm(list=ls())
+setwd("~/Downloads")
+clinstage<- read.csv("CLIA_MIBC_OP.csv")
+clinstage_df<- as.data.frame(clinstage)
+clinstage_df <- clinstage_df[clinstage_df$Stage==1,]
+
+oplot_stratify <-swimmer_plot(df=clinstage_df,
+                              id='PatientName',
+                              end='fu.diff.months',
+                              #name_fill='Arm',
+                              col="gray",
+                              alpha=0.75,
+                              width=.01,
+                              base_size = 14,
+                              stratify= c('Stage'))
+oplot_stratify <- oplot_stratify + theme(panel.border = element_blank())
+oplot_stratify <- oplot_stratify + scale_y_continuous(breaks = seq(-24, 108, by = 6))
+oplot_stratify <- oplot_stratify + labs(x ="Patients" , y="Months from Surgery")
+oplot_stratify
+
+#plot events
+oplot_ev3 <- oplot_stratify + swimmer_points(df_points=clinstage_df,
+                                    id='PatientName',
+                                    time='date.diff.months',
+                                    name_shape ='Event_type',
+                                    name_col = 'Event',
+                                    size=3.5,fill='black',
+                                    #col='darkgreen'
+)
+oplot_ev3
+
+#Shape customization to Event_type
+
+oplot_ev3.1 <- oplot_ev3 + ggplot2::scale_shape_manual(name="Event_type",values=c(1,16,6,18,18,4),breaks=c('ctDNA_neg','ctDNA_pos', 'Imaging','Cystectomy','TURBT', 'Death'))
+
+oplot_ev3.1
+
+#plot treatment
+
+oplot_ev4 <- oplot_ev3.1 + swimmer_lines(df_lines=clinstage_df,
+                                         id='PatientName',
+                                         start='Tx_start.months',
+                                         end='Tx_end.months',
+                                         name_col='Tx_type',
+                                         size=3.5,
+                                         name_alpha = 1.0)
+oplot_ev4 <- oplot_ev4 + guides(linetype = guide_legend(override.aes = list(size = 5, color = "black")))
+oplot_ev4  
+
+
+#colour customization
+oplot_ev4.2 <- oplot_ev4 + ggplot2::scale_color_manual(name="Event",values=c( "purple", "lightblue", "deepskyblue3", "black", "blue", "black", "orange", "green", "red", "gray"))
+oplot_ev4.2
+
+#Overview Plot - Stage II
+rm(list=ls())
+setwd("~/Downloads")
+clinstage<- read.csv("CLIA_MIBC_OP.csv")
+clinstage_df<- as.data.frame(clinstage)
+clinstage_df <- clinstage_df[clinstage_df$Stage==2,]
+
+oplot_stratify <-swimmer_plot(df=clinstage_df,
+                              id='PatientName',
+                              end='fu.diff.months',
+                              #name_fill='Arm',
+                              col="gray",
+                              alpha=0.75,
+                              width=.01,
+                              base_size = 14,
+                              stratify= c('Stage'))
+oplot_stratify <- oplot_stratify + theme(panel.border = element_blank())
+oplot_stratify <- oplot_stratify + scale_y_continuous(breaks = seq(-24, 108, by = 6))
+oplot_stratify <- oplot_stratify + labs(x ="Patients" , y="Months from Surgery")
+oplot_stratify
+
+##plot events
+oplot_ev3 <- oplot_stratify + swimmer_points(df_points=clinstage_df,
+                                    id='PatientName',
+                                    time='date.diff.months',
+                                    name_shape ='Event_type',
+                                    name_col = 'Event',
+                                    size=3.5,fill='black',
+                                    #col='darkgreen'
+)
+oplot_ev3
+
+#Shape customization to Event_type
+
+oplot_ev3.1 <- oplot_ev3 + ggplot2::scale_shape_manual(name="Event_type",values=c(1,16,6,18,18,4),breaks=c('ctDNA_neg','ctDNA_pos', 'Imaging','Cystectomy','TURBT', 'Death'))
+
+oplot_ev3.1
+
+#plot treatment
+
+oplot_ev4 <- oplot_ev3.1 + swimmer_lines(df_lines=clinstage_df,
+                                         id='PatientName',
+                                         start='Tx_start.months',
+                                         end='Tx_end.months',
+                                         name_col='Tx_type',
+                                         size=3.5,
+                                         name_alpha = 1.0)
+oplot_ev4 <- oplot_ev4 + guides(linetype = guide_legend(override.aes = list(size = 5, color = "black")))
+oplot_ev4  
+
+
+#colour customization
+oplot_ev4.2 <- oplot_ev4 + ggplot2::scale_color_manual(name="Event",values=c( "purple", "lightblue", "deepskyblue3", "black", "blue", "black", "orange", "orangered", "brown", "khaki", "green", "green", "red", "gray"))
+oplot_ev4.2
+
+#Overview Plot - Stage III
+rm(list=ls())
+setwd("~/Downloads")
+clinstage<- read.csv("CLIA_MIBC_OP.csv")
+clinstage_df<- as.data.frame(clinstage)
+clinstage_df <- clinstage_df[clinstage_df$Stage==3,]
+
+oplot_stratify <-swimmer_plot(df=clinstage_df,
+                              id='PatientName',
+                              end='fu.diff.months',
+                              #name_fill='Arm',
+                              col="gray",
+                              alpha=0.75,
+                              width=.01,
+                              base_size = 14,
+                              stratify= c('Stage'))
+oplot_stratify <- oplot_stratify + theme(panel.border = element_blank())
+oplot_stratify <- oplot_stratify + scale_y_continuous(breaks = seq(-24, 108, by = 6))
+oplot_stratify <- oplot_stratify + labs(x ="Patients" , y="Months from Surgery")
+oplot_stratify
+
+##plot events
+oplot_ev3 <- oplot_stratify + swimmer_points(df_points=clinstage_df,
+                                    id='PatientName',
+                                    time='date.diff.months',
+                                    name_shape ='Event_type',
+                                    name_col = 'Event',
+                                    size=3.5,fill='black',
+                                    #col='darkgreen'
+)
+oplot_ev3
+
+#Shape customization to Event_type
+
+oplot_ev3.1 <- oplot_ev3 + ggplot2::scale_shape_manual(name="Event_type",values=c(1,16,6,18,18,4),breaks=c('ctDNA_neg','ctDNA_pos', 'Imaging','Cystectomy','TURBT', 'Death'))
+
+oplot_ev3.1
+
+#plot treatment
+
+oplot_ev4 <- oplot_ev3.1 + swimmer_lines(df_lines=clinstage_df,
+                                         id='PatientName',
+                                         start='Tx_start.months',
+                                         end='Tx_end.months',
+                                         name_col='Tx_type',
+                                         size=3.5,
+                                         name_alpha = 1.0)
+oplot_ev4 <- oplot_ev4 + guides(linetype = guide_legend(override.aes = list(size = 5, color = "black")))
+oplot_ev4  
+
+
+#colour customization
+oplot_ev4.2 <- oplot_ev4 + ggplot2::scale_color_manual(name="Event",values=c( "purple", "lightblue", "black", "blue", "black", "orange", "green", "green", "red", "gray"))
+oplot_ev4.2
+
+#Overview Plot - Stage IV
+rm(list=ls())
+setwd("~/Downloads")
+clinstage<- read.csv("CLIA_MIBC_OP.csv")
+clinstage_df<- as.data.frame(clinstage)
+clinstage_df <- clinstage_df[clinstage_df$Stage==4,]
+
+oplot_stratify <-swimmer_plot(df=clinstage_df,
+                              id='PatientName',
+                              end='fu.diff.months',
+                              #name_fill='Arm',
+                              col="gray",
+                              alpha=0.75,
+                              width=.01,
+                              base_size = 14,
+                              stratify= c('Stage'))
+oplot_stratify <- oplot_stratify + theme(panel.border = element_blank())
+oplot_stratify <- oplot_stratify + scale_y_continuous(breaks = seq(-36, 108, by = 6))
+oplot_stratify <- oplot_stratify + labs(x ="Patients" , y="Months from Surgery")
+oplot_stratify
+
+##plot events
+oplot_ev3 <- oplot_stratify + swimmer_points(df_points=clinstage_df,
+                                    id='PatientName',
+                                    time='date.diff.months',
+                                    name_shape ='Event_type',
+                                    name_col = 'Event',
+                                    size=3.5,fill='black',
+                                    #col='darkgreen'
+)
+oplot_ev3
+
+#Shape customization to Event_type
+
+oplot_ev3.1 <- oplot_ev3 + ggplot2::scale_shape_manual(name="Event_type",values=c(1,16,6,18,18,4),breaks=c('ctDNA_neg','ctDNA_pos', 'Imaging','Cystectomy','TURBT', 'Death'))
+
+oplot_ev3.1
+
+#plot treatment
+
+oplot_ev4 <- oplot_ev3.1 + swimmer_lines(df_lines=clinstage_df,
+                                         id='PatientName',
+                                         start='Tx_start.months',
+                                         end='Tx_end.months',
+                                         name_col='Tx_type',
+                                         size=3.5,
+                                         name_alpha = 1.0)
+oplot_ev4 <- oplot_ev4 + guides(linetype = guide_legend(override.aes = list(size = 5, color = "black")))
+oplot_ev4  
+
+
+#colour customization
+#purple=ACT, Black=Death, Red=PD, ctDNA negative=white, ctDNA positive=black, cystectomy=blue, TURBT=gray, ACT Chemo=purple, ACT IO=lightblue 
+oplot_ev4.2 <- oplot_ev4 + ggplot2::scale_color_manual(name="Event",values=c("black", "blue", "orange", "orangered", "green", "gray"))
+oplot_ev4.2
+```
+
+#Heatmap for the clinical factors
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- circ_data %>% arrange(cStage.Group)
+circ_datadf <- as.data.frame(circ_data)
+
+ha <- HeatmapAnnotation(
+  cStage.Group = circ_data$cStage.Group,
+  Gender = circ_data$Gender,
+  Age.Group = circ_data$Age.Group,
+  NAC = circ_data$NAC,
+  NAC.Details = circ_data$NAC.Details,
+  pStage.Group = circ_data$pStage.Group,
+  TNM.Detailed = circ_data$TNM.Detailed,
+  pN.Group = circ_data$pN.Group,
+  ACT.Details = circ_data$ACT.Details,
+  MSI.status = circ_data$MSI.status,
+  TMB.status = circ_data$TMB.status,
+  histology_subtype = circ_data$histology_subtype,
+  Urothelial = circ_data$Urothelial,
+  Squamous = circ_data$Squamous,
+  Adenocarcinoma = circ_data$Adenocarcinoma,
+  Lipoid = circ_data$Lipoid,
+  Sarcomatoid = circ_data$Sarcomatoid,
+  GiantCell = circ_data$GiantCell,
+  Nested = circ_data$Nested,
+  Micropapillary = circ_data$Micropapillary,
+  Neuroendocrine = circ_data$Neuroendocrine,
+  Plasmacytoid = circ_data$Plasmacytoid,
+  Mucinous = circ_data$Mucinous,
+  Microcystic = circ_data$Microcystic,
+  Glandular = circ_data$Glandular,
+  ClearCell = circ_data$ClearCell,
+  TP53 = circ_data$TP53,
+  ARID1A = circ_data$ARID1A,
+  KDM6A = circ_data$KDM6A,
+  ERBB2 = circ_data$ERBB2,
+  PIK3CA = circ_data$PIK3CA,
+  RB1 = circ_data$RB1,
+  RYR2 = circ_data$RYR2,
+  ANK2 = circ_data$ANK2,
+  ERCC2 = circ_data$ERCC2,
+  AKAP9 = circ_data$AKAP9,
+  CREBBP = circ_data$CREBBP,
+  MUC4 = circ_data$MUC4,
+  KIAA2026 = circ_data$KIAA2026,
+  NSD1 = circ_data$NSD1,
+  ZNF469 = circ_data$ZNF469,
+  APC2 = circ_data$APC2,
+  COL6A5 = circ_data$COL6A5,
+  DMD = circ_data$DMD,
+  DNAH14 = circ_data$DNAH14,
+  EP300 = circ_data$EP300,
+  FSIP2 = circ_data$FSIP2,
+  MYCBP2 = circ_data$MYCBP2,
+  SPTAN1 = circ_data$SPTAN1,
+  DYNC1H1 = circ_data$DYNC1H1,
+  ZFHX4 = circ_data$ZFHX4,
+  MRD_anytimepreSx = circ_data$MRD_anytimepreSx,
+  MRD_postSx.MRD.Window = circ_data$MRD_postSx.MRD.Window,
+  MRD.Surveillance.Window = circ_data$MRD.Surveillance.Window,
+  MRD_anytimeSx = circ_data$MRD_anytimeSx,
+  RecStatus = circ_data$RecStatus,
+  VitalStatus = circ_data$VitalStatus,
+  
+    col = list(cStage.Group = c("1" = "seagreen1", "2" = "khaki", "3" = "orange", "4" = "purple"),
+    Gender = c("Female" = "goldenrod" , "Male" = "blue4"),
+    Age.Group = c("1" = "#C1211A", "0" ="#008BCE"),
+    NAC = c("1" = "darkmagenta", "0" = "gray"),
+    NAC.Details = c("ChemoRT" = "coral", "Chemo" ="darkgreen", "ChemoIO" = "yellow3"),
+    pStage.Group = c("1" = "seagreen2", "2" = "cornflowerblue", "3" ="darkmagenta"),
+    TNM.Detailed = c("Tis/T1N0M0" = "lightblue", "T2-T4N0M0" ="orange", "TxN1/N2M0/M1" = "brown" ),
+    pN.Group = c("0" = "yellow", "1" ="brown"),
+    ACT.Details = c("Surveillance" = "lightblue", "Chemo" = "orange2", "IO" ="khaki", "ChemoIO" = "brown2"),
+    MSI.status = c("MSS" = "grey", "MSI-Hi" ="black"),
+    TMB.status = c("TMB-Low" = "darkgreen", "TMB-High" ="darkmagenta"),
+    histology_subtype = c("VH" = "coral", "Pure" ="darkgreen"),
+    Urothelial = c("FALSE" = "grey", "TRUE" ="black"),
+             Squamous = c("FALSE" = "grey", "TRUE" ="black"),
+             Adenocarcinoma = c("FALSE" = "grey", "TRUE" ="black"),
+             Lipoid = c("FALSE" = "grey", "TRUE" ="black"),
+             Sarcomatoid = c("FALSE" = "grey", "TRUE" ="black"),
+             GiantCell = c("FALSE" = "grey", "TRUE" ="black"),
+             Nested = c("FALSE" = "grey", "TRUE" ="black"),
+             Micropapillary = c("FALSE" = "grey", "TRUE" ="black"),
+             Neuroendocrine = c("FALSE" = "grey", "TRUE" ="black"),
+             Plasmacytoid = c("FALSE" = "grey", "TRUE" ="black"),
+             Mucinous = c("FALSE" = "grey", "TRUE" ="black"),
+             Microcystic = c("FALSE" = "grey", "TRUE" ="black"),
+             Glandular = c("FALSE" = "grey", "TRUE" ="black"),
+             ClearCell = c("FALSE" = "grey", "TRUE" ="black"),
+    TP53 = c("WT" = "grey", "Mut" ="black"),
+    ARID1A = c("WT" = "grey", "Mut" ="black"),
+    KDM6A = c("WT" = "grey", "Mut" ="black"),
+    ERBB2 = c("WT" = "grey", "Mut" ="black"),
+    PIK3CA = c("WT" = "grey", "Mut" ="black"),
+    RB1 = c("WT" = "grey", "Mut" ="black"),
+    RYR2 = c("WT" = "grey", "Mut" ="black"),
+    ANK2 = c("WT" = "grey", "Mut" ="black"),
+    ERCC2 = c("WT" = "grey", "Mut" ="black"),
+    AKAP9 = c("WT" = "grey", "Mut" ="black"),
+    CREBBP = c("WT" = "grey", "Mut" ="black"),
+    MUC4 = c("WT" = "grey", "Mut" ="black"),
+    KIAA2026 = c("WT" = "grey", "Mut" ="black"),
+    NSD1 = c("WT" = "grey", "Mut" ="black"),
+    ZNF469 = c("WT" = "grey", "Mut" ="black"),
+    APC2 = c("WT" = "grey", "Mut" ="black"),
+    COL6A5 = c("WT" = "grey", "Mut" ="black"),
+    DMD = c("WT" = "grey", "Mut" ="black"),
+    DNAH14 = c("WT" = "grey", "Mut" ="black"),
+    EP300 = c("WT" = "grey", "Mut" ="black"),
+    FSIP2 = c("WT" = "grey", "Mut" ="black"),
+    MYCBP2 = c("WT" = "grey", "Mut" ="black"),
+    SPTAN1 = c("WT" = "grey", "Mut" ="black"),
+    DYNC1H1 = c("WT" = "grey", "Mut" ="black"),
+    ZFHX4 = c("WT" = "grey", "Mut" ="black"),
+    MRD_anytimepreSx = c("1" = "red3", "0" ="blue"),
+    MRD_postSx.MRD.Window = c("1" = "red3", "0" ="blue"),
+    MRD.Surveillance.Window = c("1" = "red3", "0" ="blue"),
+    MRD_anytimeSx = c("1" = "red3", "0" ="blue"),
+    RecStatus = c("1" = "red3", "0" ="blue"),
+    VitalStatus = c("1" = "black", "0" ="grey")
+)
+)
+ht <- Heatmap(matrix(nrow = 0, ncol = length(circ_data$Gender)),show_row_names = FALSE,cluster_rows = F,cluster_columns = FALSE, top_annotation = ha)
+pdf("heatmap.pdf",width = 7, height = 7)
+draw(ht, annotation_legend_side = "bottom")
+dev.off()
+```
+
+
+
+#Prognostic role of ctDNA in the pre-RC setting (non-NAC treated)
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$NAC=="0",]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+
+
+survfit(Surv(time = circ_data$RFS_TURBT, event = circ_data$RecStatus)~MRD_anytimepreSx, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_TURBT, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ MRD_anytimepreSx, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = TRUE, conf.int = FALSE, risk.table = TRUE, break.time.by=3, palette=c("blue","red"), title="DFS - ctDNA pre-RC | No-NAC", ylab= "Disease Free Survival", xlab="Months from TURBT", legend.labs=c("ctDNA Negative", "ctDNA Positive"), legend.title="")
+summary(KM_curve, times= c(12))
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels=c("0","1"))
+cox_fit <- coxphf(surv_object ~ MRD_anytimepreSx, data=circ_data) 
+summary(cox_fit)
+
+# Fisher plot for pre-RC ctDNA and Rec Status
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$RecStatus <- factor(circ_data$RecStatus, levels = c("0", "1"), labels = c("No Recurrence", "Recurrence"))
+contingency_table <- table(circ_data$MRD_anytimepreSx, circ_data$RecStatus)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA pre-RC - no NAC (n = 32)", x = "ctDNA", y = "Patients (%)", fill = "Recurrence") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("No Recurrence" = "lightblue3", "Recurrence" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+# Median of FU_months
+median_value <- median(circ_data$FU_months, na.rm = TRUE)
+
+# Range of FU_months (Min and Max)
+min_value <- min(circ_data$FU_months, na.rm = TRUE)
+max_value <- max(circ_data$FU_months, na.rm = TRUE)
+
+# Print the results
+cat("Median of FU_months:", median_value, "\n")
+cat("Range of FU_months:", min_value, "to", max_value)
+```
+
+#ctDNA pre-RC association with pathological factors after RC (Non-NAC treated)
+```{r}
+# Fisher plot pre-RC ctDNA and Pathological Stage after RC
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$NAC=="0",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_datadf <- as.data.frame(circ_data)
+
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$pStage.Group2 <- factor(circ_data$pStage.Group2, levels = c("1", "2"), labels = c("O/I", "II/III"))
+contingency_table <- table(circ_data$MRD_anytimepreSx, circ_data$pStage.Group2)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA pre-RC (n = 32) | No NAC", x = "ctDNA", y = "Patients (%)", fill = "Pathological Stage") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("O/I" = "lightblue3", "II/III" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+```
+
+#Multivariate regression model for DFS at the pre-RC setting (NAC & Non-NAC treated)
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+
+circ_datadf$Gender <- factor(circ_datadf$Gender, levels = c("Female", "Male"), labels = c("Female", "Male"))
+circ_datadf$Age.Group <- factor(circ_datadf$Age.Group, levels = c("0", "1"), labels = c("<70", "≥70"))
+circ_datadf$NAC <- factor(circ_datadf$NAC, levels = c("1", "0"), labels = c("NAT", "Upfront Surgery"))
+circ_datadf$TMB.status <- factor(circ_datadf$TMB.status, levels = c("TMB-High", "TMB-Low"), labels = c("TMB High", "TMB Low"))
+circ_datadf$histology_subtype <- factor(circ_datadf$histology_subtype, levels = c("Pure", "VH"), labels = c("Pure Urothelial", "Variant Histology"))
+circ_datadf$MRD_anytimepreSx <- factor(circ_datadf$MRD_anytimepreSx, levels=c("0","1"), labels = c("Negative", "Positive"))
+surv_object<-Surv(time = circ_datadf$RFS_TURBT, event = circ_datadf$RecStatus) 
+cox_fit <- coxph(surv_object ~ Gender + Age.Group + NAC + TMB.status + MRD_anytimepreSx, data=circ_datadf) 
+ggforest(cox_fit, data = circ_datadf, main = "Multivariate Regression Model for DFS", refLabel = "Reference Group")
+test.ph <- cox.zph(cox_fit)
+```
+
+#Univariate regression models for DFS for the factors used in the MVA
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_TURBT, event = circ_data$RecStatus)
+circ_datadf$Gender <- factor(circ_datadf$Gender, levels = c("Female", "Male"), labels = c("Female", "Male")) #univariate for gender
+cox_fit <- coxph(surv_object ~ Gender, data=circ_data)
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_TURBT, event = circ_data$RecStatus)
+circ_datadf$Age.Group <- factor(circ_datadf$Age.Group, levels = c("0", "1"), labels = c("<70", "≥70")) #univariate for age group
+cox_fit <- coxph(surv_object ~ Age.Group, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_TURBT, event = circ_data$RecStatus)
+circ_datadf$NAC <- factor(circ_datadf$NAC, levels = c("1", "0"), labels = c("NAT", "Upfront Surgery")) #univariate for NAT
+cox_fit <- coxph(surv_object ~ NAC, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_TURBT, event = circ_data$RecStatus)
+circ_datadf$TMB.status <- factor(circ_datadf$TMB.status, levels = c("TMB-High", "TMB-Low"), labels = c("TMB High", "TMB Low")) #univariate for TMB
+cox_fit <- coxph(surv_object ~ TMB.status, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- subset(circ_data, !is.na(MRD_anytimepreSx))
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_TURBT, event = circ_data$RecStatus)
+circ_data$MRD_anytimepreSx <- factor(circ_data$MRD_anytimepreSx, levels=c("0","1")) #univariate for ctDNA pre-op
+cox_fit <- coxph(surv_object ~ MRD_anytimepreSx, data=circ_data)
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+```
+
+#Prognostic role of ctDNA at the MRD Window (1-12 week post-RC)
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~MRD_postSx.MRD.Window, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ MRD_postSx.MRD.Window, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = FALSE, conf.int = FALSE, risk.table = TRUE, break.time.by=6, palette=c("blue","red"), title="DFS - ctDNA post-RC MRD Window", ylab= "Disease Free Survival", xlab="Time (Months)", legend.labs=c("ctDNA Negative", "ctDNA Positive"), legend.title="")
+summary(KM_curve, times= c(12))
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels=c("0","1"))
+cox_fit <- coxph(surv_object ~ MRD_postSx.MRD.Window, data=circ_data) 
+ggforest(cox_fit,data = circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+
+# Extract values for HR, 95% CI, and p-value
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+# Fisher plot for ctDNA at the MRD Window (1-12 weeks post-RC) and Rec Status
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$RecStatus <- factor(circ_data$RecStatus, levels = c("0", "1"), labels = c("No Recurrence", "Recurrence"))
+contingency_table <- table(circ_data$MRD_postSx.MRD.Window, circ_data$RecStatus)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA MRD Window (n = 94)", x = "ctDNA", y = "Patients (%)", fill = "Recurrence") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("No Recurrence" = "lightblue3", "Recurrence" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+```
+
+#ctDNA positivity rate at the MRD window in NAT vs upfront surgery
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+
+# Fisher plot for ctDNA at the MRD Window (1-12 weeks post-RC) and NAT
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_datadf$NAC <- factor(circ_datadf$NAC, levels = c("1", "0"), labels = c("NAT", "Upfront Surgery"))
+contingency_table <- table(circ_data$NAC, circ_data$MRD_postSx.MRD.Window)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA MRD Window (n = 94)", x = "NAT", y = "Patients (%)", fill = "ctDNA") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("ctDNA(-)" = "lightblue3", "ctDNA(+)" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+```
+
+#Multivariate regression model for DFS at the MRD Window
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+
+circ_datadf$Gender <- factor(circ_datadf$Gender, levels = c("Female", "Male"), labels = c("Female", "Male"))
+circ_datadf$Age.Group <- factor(circ_datadf$Age.Group, levels = c("0", "1"), labels = c("<70", "≥70"))
+circ_datadf$NAC <- factor(circ_datadf$NAC, levels = c("1", "0"), labels = c("NAT", "Upfront Surgery"))
+circ_datadf$cStage.Group2 <- factor(circ_datadf$cStage.Group2, levels = c("1", "2"))
+circ_datadf$histology_subtype <- factor(circ_datadf$histology_subtype, levels = c("Pure", "VH"), labels = c("Pure Urothelial", "Variant Histology"))
+circ_datadf$TMB.status <- factor(circ_datadf$TMB.status, levels = c("TMB-High", "TMB-Low"), labels = c("TMB High", "TMB Low"))
+circ_datadf$MRD_postSx.MRD.Window <- factor(circ_datadf$MRD_postSx.MRD.Window, levels=c("0","1"), labels = c("Negative", "Positive"))
+surv_object<-Surv(time = circ_datadf$RFS_months, event = circ_datadf$RecStatus) 
+cox_fit <- coxph(surv_object ~ Gender + Age.Group + NAC + cStage.Group2 + histology_subtype + TMB.status + MRD_postSx.MRD.Window, data=circ_datadf) 
+ggforest(cox_fit, data = circ_datadf, main = "Multivariate Regression Model for DFS", refLabel = "Reference Group")
+test.ph <- cox.zph(cox_fit)
+```
+
+#Univariate regression models for DFS for the factors used in the MVA
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$Gender <- factor(circ_datadf$Gender, levels = c("Female", "Male"), labels = c("Female", "Male")) #univariate for gender
+cox_fit <- coxph(surv_object ~ Gender, data=circ_data)
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$Age.Group <- factor(circ_datadf$Age.Group, levels = c("0", "1"), labels = c("<70", "≥70")) #univariate for age group
+cox_fit <- coxph(surv_object ~ Age.Group, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$NAC <- factor(circ_datadf$NAC, levels = c("1", "0"), labels = c("NAT", "Upfront Surgery")) #univariate for NAT
+cox_fit <- coxph(surv_object ~ NAC, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$cStage.Group2 <- factor(circ_datadf$cStage.Group2, levels = c("1", "2")) #univariate for overall stage
+cox_fit <- coxph(surv_object ~ cStage.Group2, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$histology_subtype <- factor(circ_datadf$histology_subtype, levels = c("Pure", "VH"), labels = c("Pure Urothelial", "Variant Histology")) #univariate for histology subtype
+cox_fit <- coxph(surv_object ~ histology_subtype, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$TMB.status <- factor(circ_datadf$TMB.status, levels = c("TMB-High", "TMB-Low"), labels = c("TMB High", "TMB Low")) #univariate for TMB
+cox_fit <- coxph(surv_object ~ TMB.status, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels=c("0","1")) #univariate for ctDNA MRD window
+cox_fit <- coxph(surv_object ~ MRD_postSx.MRD.Window, data=circ_data)
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+```
+
+#Prognostic role of ctDNA at the MRD Window - by stage
+```{r}
+#DFS in Stage 0/I
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- circ_data[circ_data$pStage.Group2==1,]
+circ_data <- subset(circ_data, !is.na(MRD_postSx.MRD.Window))
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~MRD_postSx.MRD.Window, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ MRD_postSx.MRD.Window, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = TRUE, conf.int = FALSE, risk.table = TRUE, break.time.by=3, palette=c("blue","red"), title="DFS - ctDNA post-RC MRD Window | Stage 0/I", ylab= "Disease Free Survival", xlab="Time (Months)", legend.labs=c("ctDNA Negative", "ctDNA Positive"), legend.title="")
+summary(KM_curve, times= c(0,12))
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels=c("0","1"))
+cox_fit <- coxphf(surv_object ~ MRD_postSx.MRD.Window, data=circ_data)
+summary(cox_fit)
+
+# Fisher plot for ctDNA at the MRD Window (1-12 weeks post-RC) and Rec Status
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$RecStatus <- factor(circ_data$RecStatus, levels = c("0", "1"), labels = c("No Recurrence", "Recurrence"))
+contingency_table <- table(circ_data$MRD_postSx.MRD.Window, circ_data$RecStatus)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA MRD Window | Stage 0/I (n = 30)", x = "ctDNA", y = "Patients (%)", fill = "Recurrence") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("No Recurrence" = "lightblue3", "Recurrence" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+
+#DFS in Stage II/III
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- circ_data[circ_data$pStage.Group2==2,]
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_datadf <- as.data.frame(circ_data)
+
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~MRD_postSx.MRD.Window, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ MRD_postSx.MRD.Window, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = FALSE, conf.int = FALSE, risk.table = TRUE, break.time.by=6, palette=c("blue","red"), title="DFS - ctDNA post-RC MRD Window | Stage II/III", ylab= "Disease Free Survival", xlab="Time (Months)", legend.labs=c("ctDNA Negative", "ctDNA Positive"), legend.title="")
+summary(KM_curve, times= c(0,12))
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels=c("0","1"))
+cox_fit <- coxph(surv_object ~ MRD_postSx.MRD.Window, data=circ_data)
+ggforest(cox_fit,data = circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+
+# Extract values for HR, 95% CI, and p-value
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+# Fisher plot for ctDNA at the MRD Window (1-12 weeks post-RC) and Rec Status
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$RecStatus <- factor(circ_data$RecStatus, levels = c("0", "1"), labels = c("No Recurrence", "Recurrence"))
+contingency_table <- table(circ_data$MRD_postSx.MRD.Window, circ_data$RecStatus)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA MRD Window | Stage II/III (n = 64)", x = "ctDNA", y = "Patients (%)", fill = "Recurrence") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("No Recurrence" = "lightblue3", "Recurrence" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+```
+
+#ctDNA Dynamics from preRC to MRD Window
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~ctDNA.Dynamics, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ ctDNA.Dynamics, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = TRUE, conf.int = FALSE, risk.table = TRUE, break.time.by=3, palette=c("blue","green","purple", "red"), title="DFS - ctDNA Dynamics pre-op to MRD Window", ylab= "Disease Free Survival", xlab="Months from Cystectomy", legend.labs=c("Persistently negative", "Converted negative","Converted positive", "Persistently positive"), legend.title="")
+summary(KM_curve, times= c(0, 12))
+circ_data$ctDNA.Dynamics <- factor(circ_data$ctDNA.Dynamics, levels=c("1","2","3","4"), labels = c("Persistently negative", "Converted negative","Converted positive", "Persistently positive"))
+cox_fit <- coxph(surv_object ~ ctDNA.Dynamics, data=circ_data) 
+ggforest(cox_fit,data = circ_data) 
+summary(cox_fit)
+```
+
+
+#DFS by ctDNA and ACT combination in upfront surgery pts - four groups
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$NAC=="0",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+
+circ_data$ctDNA.MRD.ACT <- NA #first we create the variable for the ctDNA & NAC combination, and we assign values
+circ_data <- circ_data %>%
+  mutate(ctDNA.MRD.ACT = case_when(
+    postRC.FU == 2 & MRD_postSx.MRD.Window == 0 ~ 1,
+    postRC.FU == 2 & MRD_postSx.MRD.Window == 1 ~ 2,
+    postRC.FU == 1 & MRD_postSx.MRD.Window == 0 ~ 3,
+    postRC.FU == 1 & MRD_postSx.MRD.Window == 1 ~ 4
+  ))
+
+circ_data <- subset(circ_data, !is.na(ctDNA.MRD.ACT))
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~ctDNA.MRD.ACT, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ ctDNA.MRD.ACT, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = TRUE, conf.int = FALSE, risk.table = TRUE, break.time.by=3, palette=c("blue","green","purple", "red"), title="DFS - upfront surgery | ctDNA MRD Window & ACT", ylab= "Disease Free Survival", xlab="Time (Months)", legend.labs=c("Surgery/ctDNA(-)/ACT", "Surgery/ctDNA(+)/ACT","Surgery/ctDNA(-)/No ACT", "Surgery/ctDNA(+)/No ACT"), legend.title="")
+summary(KM_curve, times= c(0, 12))
+circ_data$ctDNA.MRD.ACT <- factor(circ_data$ctDNA.MRD.ACT, levels=c("1","2", "3", "4"), labels = c("Surgery/ctDNA(-)/ACT", "Surgery/ctDNA(+)/ACT","Surgery/ctDNA(-)/No ACT", "Surgery/ctDNA(+)/No ACT"))
+cox_fit <- coxphf(surv_object ~ ctDNA.MRD.ACT, data=circ_data) 
+summary(cox_fit)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$NAC=="0",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+
+circ_data$ctDNA.MRD.ACT <- NA #first we create the variable for the ctDNA & NAC combination, and we assign values
+circ_data <- circ_data %>%
+  mutate(ctDNA.MRD.ACT = case_when(
+    postRC.FU == 2 & MRD_postSx.MRD.Window == 0 ~ 1,
+    postRC.FU == 2 & MRD_postSx.MRD.Window == 1 ~ 2,
+    postRC.FU == 1 & MRD_postSx.MRD.Window == 0 ~ 3,
+    postRC.FU == 1 & MRD_postSx.MRD.Window == 1 ~ 4
+  ))
+
+circ_data <- subset(circ_data, !is.na(ctDNA.MRD.ACT))
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~ctDNA.MRD.ACT, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ ctDNA.MRD.ACT, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = TRUE, conf.int = FALSE, risk.table = TRUE, break.time.by=3, palette=c("blue","green","purple", "red"), title="DFS - upfront surgery | ctDNA MRD Window & ACT", ylab= "Disease Free Survival", xlab="Time (Months)", legend.labs=c("Surgery/ctDNA(-)/ACT", "Surgery/ctDNA(+)/ACT","Surgery/ctDNA(-)/No ACT", "Surgery/ctDNA(+)/No ACT"), legend.title="")
+summary(KM_curve, times= c(0, 12))
+circ_data$ctDNA.MRD.ACT <- factor(circ_data$ctDNA.MRD.ACT, levels=c("3","1","2","4"), labels = c("Surgery/ctDNA(-)/No ACT", "Surgery/ctDNA(-)/ACT", "Surgery/ctDNA(+)/ACT","Surgery/ctDNA(+)/No ACT"))
+cox_fit <- coxphf(surv_object ~ ctDNA.MRD.ACT, data=circ_data) 
+summary(cox_fit)
+```
+
+#Prognostic role of ctDNA at the Surveillance Window (>12 weeks post-RC or anytime after AT)
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~MRD.Surveillance.Window, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ MRD.Surveillance.Window, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = FALSE, conf.int = FALSE, risk.table = TRUE, break.time.by=12, palette=c("blue","red"), title="DFS - ctDNA post-RC Surveillance window", ylab= "Disease Free Survival", xlab="Months from cystectomy", legend.labs=c("ctDNA Negative", "ctDNA Positive"), legend.title="")
+summary(KM_curve, times= c(12, 24))
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels=c("0","1"))
+cox_fit <- coxph(surv_object ~ MRD.Surveillance.Window, data=circ_data) 
+ggforest(cox_fit,data = circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+
+# Extract values for HR, 95% CI, and p-value
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+# Fisher plot for ctDNA at the Surveillance window - >12 weeks & anytime postACT and Rec Status
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$RecStatus <- factor(circ_data$RecStatus, levels = c("0", "1"), labels = c("No Recurrence", "Recurrence"))
+contingency_table <- table(circ_data$MRD.Surveillance.Window, circ_data$RecStatus)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA post-RC Surveillance Window (n = 117)", x = "ctDNA", y = "Patients (%)", fill = "Recurrence") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("No Recurrence" = "lightblue3", "Recurrence" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+```
+
+
+#Multivariate regression model for DFS at the Surveillance Window
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_datadf <- as.data.frame(circ_data)
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+
+circ_datadf$Gender <- factor(circ_datadf$Gender, levels = c("Female", "Male"), labels = c("Female", "Male"))
+circ_datadf$Age.Group <- factor(circ_datadf$Age.Group, levels = c("0", "1"), labels = c("<70", "≥70"))
+circ_datadf$postRC.FU <- factor(circ_datadf$postRC.FU, levels = c("1", "2"), labels = c("Surveillance", "Adjuvant Treatment"))
+circ_datadf$NAC <- factor(circ_datadf$NAC, levels = c("1", "0"), labels = c("NAT", "Upfront Surgery"))
+circ_datadf$cStage.Group2 <- factor(circ_datadf$cStage.Group2, levels = c("1", "2"))
+circ_datadf$histology_subtype <- factor(circ_datadf$histology_subtype, levels = c("Pure", "VH"), labels = c("Pure Urothelial", "Variant Histology"))
+circ_datadf$TMB.status <- factor(circ_datadf$TMB.status, levels = c("TMB-High", "TMB-Low"), labels = c("TMB High", "TMB Low"))
+circ_datadf$MRD.Surveillance.Window <- factor(circ_datadf$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+surv_object<-Surv(time = circ_datadf$RFS_months, event = circ_datadf$RecStatus) 
+cox_fit <- coxph(surv_object ~ Gender + Age.Group + postRC.FU + cStage.Group2 + histology_subtype + TMB.status + MRD.Surveillance.Window, data=circ_datadf) 
+ggforest(cox_fit, data = circ_datadf, main = "Multivariate Regression Model for DFS", refLabel = "Reference Group")
+test.ph <- cox.zph(cox_fit)
+```
+
+
+#Univariate regression models for DFS for the factors used in the MVA
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$Gender <- factor(circ_datadf$Gender, levels = c("Female", "Male"), labels = c("Female", "Male")) #univariate for gender
+cox_fit <- coxph(surv_object ~ Gender, data=circ_data)
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$Age.Group <- factor(circ_datadf$Age.Group, levels = c("0", "1"), labels = c("<70", "≥70")) #univariate for age group
+cox_fit <- coxph(surv_object ~ Age.Group, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$NAC <- factor(circ_datadf$NAC, levels = c("1", "2"), labels = c("Surveillance", "Adjuvant Treatment")) #univariate for NAC
+cox_fit <- coxph(surv_object ~ NAC, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$postRC.FU <- factor(circ_datadf$postRC.FU, levels = c("1", "2"), labels = c("Surveillance", "Adjuvant Treatment")) #univariate for AT
+cox_fit <- coxph(surv_object ~ postRC.FU, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$cStage.Group2 <- factor(circ_datadf$cStage.Group2, levels = c("1", "2")) #univariate for clinical stage
+cox_fit <- coxph(surv_object ~ cStage.Group2, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$histology_subtype <- factor(circ_datadf$histology_subtype, levels = c("Pure", "VH"), labels = c("Pure Urothelial", "Variant Histology")) #univariate for histology subtype
+cox_fit <- coxph(surv_object ~ histology_subtype, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_datadf$TMB.status <- factor(circ_datadf$TMB.status, levels = c("TMB-High", "TMB-Low"), labels = c("TMB High", "TMB Low")) #univariate for TMB
+cox_fit <- coxph(surv_object ~ TMB.status, data=circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_datadf <- as.data.frame(circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels=c("0","1")) #univariate for ctDNA surveillance window
+cox_fit <- coxph(surv_object ~ MRD.Surveillance.Window, data=circ_data)
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+```
+
+
+#Time-dependent cox regression analysis for surveillance window
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+dt <- read_xlsx("RWE_MIBC Time Dependent Data.xlsx") |>
+  clean_names() |>
+  mutate(window_start_date = surveillance_1_date) |>
+  mutate(across(.cols = c(window_start_date,dfs_date,
+                surveillance_1_date:surveillance_12_date), 
+                .fns = ~ as_date(as.Date(.x, format = "%Y-%m-%d"))))
+
+dt_biomarker <- dt |>
+  select(pts_id, ct_dna_surveillance_available,
+         window_start_date,
+         surveillance_1_status:surveillance_12_date) |>
+  filter(ct_dna_surveillance_available) |>
+  pivot_longer(cols = surveillance_1_status:surveillance_12_date,
+               names_to = c("visit_number", ".value"),
+               names_pattern = "surveillance_(.)_(.*)") |>
+  mutate(biomarker_time = day(days(date - window_start_date))) |>
+  select(pts_id, biomarker_time, biomarker_status = status) |>
+  filter(!is.na(biomarker_time))
+
+glimpse(dt_biomarker)
+
+dt_survival <- dt |>
+  select(pts_id, ct_dna_surveillance_available,
+         window_start_date:dfs_date) |>
+  filter(ct_dna_surveillance_available) |>
+  mutate(dfs_time = (dfs_date - window_start_date),
+         dfs_time = day(days(dfs_time)),
+         dfs_event = as.numeric(dfs_event)) |>
+  select(pts_id, dfs_time, dfs_event)
+
+glimpse(dt_survival)
+
+aux <- dt_survival %>% 
+  filter(dfs_time <= 0)
+
+tab <- left_join(aux, dt) |>
+  select(pts_id, window_start_date, dfs_time, dfs_date,
+         surveillance_1_date:surveillance_12_date) |>
+  mutate(across(.cols = dfs_date:surveillance_12_date, 
+                .fns = ~ as_date(.x))) |>
+  select(pts_id, window_start_date, dfs_date, dfs_time)
+
+datatable(tab, filter = "top")
+
+dt_survival <- dt_survival |>
+  filter(dfs_time > 0)
+
+aux <- dt |>
+  select(pts_id, ct_dna_surveillance_available,
+         window_start_date, dfs_date,
+         surveillance_1_date:surveillance_12_date) |>
+  mutate(across(.cols = surveillance_1_date:surveillance_12_date, 
+                .fns = ~ .x - window_start_date)) |>
+  mutate(across(.cols = surveillance_1_date:surveillance_12_date, 
+                .fns = ~ .x < 0)) |>
+  rowwise() |>
+   mutate(sum_neg = 
+           sum(c_across(surveillance_1_date:surveillance_12_date),
+               na.rm = TRUE))  |>
+  select(pts_id, sum_neg)
+
+tab <- left_join(aux, dt) |>
+  filter(sum_neg > 0) |>
+  select(pts_id, sum_neg, window_start_date,
+         surveillance_1_date:surveillance_12_date) |>
+  mutate(across(.cols = window_start_date:surveillance_12_date, 
+                .fns = ~ as_date(.x))) 
+
+datatable(tab, filter = "top")
+
+aux <- dt |>
+  select(pts_id, ct_dna_surveillance_available,
+         window_start_date, dfs_date,
+         surveillance_1_date:surveillance_12_date) |>
+  mutate(across(.cols = dfs_date:surveillance_12_date, 
+                .fns = ~ .x - window_start_date)) |>
+  mutate(across(.cols = surveillance_2_date:surveillance_12_date,
+                .fns = ~ dfs_date < .x)) |>
+  rowwise() |>
+  mutate(n_biomarker_after_event = sum(c_across(surveillance_2_date:
+                              surveillance_12_date), 
+                   na.rm = TRUE)) |>
+  mutate(across(.cols = surveillance_1_date:surveillance_12_date,
+                .fns = ~ !is.na(.x))) |>
+  mutate(total_biomarker = sum(c_across(surveillance_2_date:
+                              surveillance_12_date), 
+                   na.rm = TRUE)) |>
+  select(pts_id, n_biomarker_after_event, total_biomarker)
+
+temp <- aux |> 
+  select(-pts_id) |>
+  group_by(n_biomarker_after_event, total_biomarker) |>
+  dplyr::summarize(freq = n())
+
+
+tab <- left_join(aux, dt) |>
+  select(pts_id, n_biomarker_after_event, total_biomarker, 
+         dfs_date,
+         surveillance_2_date:surveillance_12_date) |>
+  mutate(across(.cols = dfs_date:surveillance_12_date, 
+                .fns = ~ as_date(.x))) |>
+  filter(n_biomarker_after_event > 0)
+datatable(tab, filter = "top")
+
+aux <- tmerge(data1 = dt_survival, 
+              data2 = dt_survival,
+              id = pts_id, 
+              dfs_event = event(dfs_time, dfs_event))
+dt_final <- tmerge(data1 = aux, 
+                   data2 = dt_biomarker,
+                   id = pts_id, 
+                   biomarker_status = 
+                     tdc(biomarker_time, biomarker_status))
+
+datatable(dt_final, filter = "top")
+
+# Syntax if there is not time-dependent covariate
+# fit <- coxph(Surv(dfs_time, dfs_event) ~ biomarker_status,
+#              data = dt_final)
+# summary(fit)
+
+fit <- coxph(Surv(tstart, tstop, dfs_event) ~ biomarker_status,
+             data = dt_final)
+summary(fit)
+```
+
+#Prognostic role of ctDNA at the Surveillance Window - AT treated cohort
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$postRC.FU==2,]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+
+circ_data$RFS_months=circ_data$RFS_months-3
+circ_data <- circ_data[circ_data$RFS_months>=0,]
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~MRD.Surveillance.Window, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ MRD.Surveillance.Window, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = FALSE, conf.int = FALSE, risk.table = TRUE, break.time.by=6, palette=c("blue","red"), title="DFS - ctDNA post-RC Surveillance window | AT treated", ylab= "Disease Free Survival", xlab="Months from cystectomy", legend.labs=c("ctDNA Negative", "ctDNA Positive"), legend.title="")
+summary(KM_curve, times= c(12, 24))
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels=c("0","1"))
+cox_fit <- coxph(surv_object ~ MRD.Surveillance.Window, data=circ_data) 
+ggforest(cox_fit,data = circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+
+# Extract values for HR, 95% CI, and p-value
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+# Fisher plot for ctDNA at the Surveillance window - >12 weeks & anytime postACT and Rec Status
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$RecStatus <- factor(circ_data$RecStatus, levels = c("0", "1"), labels = c("No Recurrence", "Recurrence"))
+contingency_table <- table(circ_data$MRD.Surveillance.Window, circ_data$RecStatus)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA post-RC Surveillance Window - AT treated (n = 52)", x = "ctDNA", y = "Patients (%)", fill = "Recurrence") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("No Recurrence" = "lightblue3", "Recurrence" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+```
+
+
+#Time-dependent cox regression analysis for surveillance window - AT treated
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+dt <- read_xlsx("RWE_MIBC Time Dependent Data.xlsx") |>
+  clean_names() |>
+  mutate(window_start_date = surveillance_1_date) |>
+  mutate(across(.cols = c(window_start_date, dfs_date,
+                          surveillance_1_date:surveillance_12_date), 
+                .fns = ~ as_date(as.Date(.x, format = "%Y-%m-%d")))) |>
+  filter(at == TRUE)
+
+dt_biomarker <- dt |>
+  select(pts_id, ct_dna_surveillance_available,
+         window_start_date,
+         surveillance_1_status:surveillance_12_date) |>
+  filter(ct_dna_surveillance_available) |>
+  pivot_longer(cols = surveillance_1_status:surveillance_12_date,
+               names_to = c("visit_number", ".value"),
+               names_pattern = "surveillance_(.)_(.*)") |>
+  mutate(biomarker_time = day(days(date - window_start_date))) |>
+  select(pts_id, biomarker_time, biomarker_status = status) |>
+  filter(!is.na(biomarker_time))
+
+glimpse(dt_biomarker)
+
+dt_survival <- dt |>
+  select(pts_id, ct_dna_surveillance_available,
+         window_start_date:dfs_date) |>
+  filter(ct_dna_surveillance_available) |>
+  mutate(dfs_time = (dfs_date - window_start_date),
+         dfs_time = day(days(dfs_time)),
+         dfs_event = as.numeric(dfs_event)) |>
+  select(pts_id, dfs_time, dfs_event)
+
+glimpse(dt_survival)
+
+aux <- dt_survival %>% 
+  filter(dfs_time <= 0)
+
+tab <- left_join(aux, dt) |>
+  select(pts_id, window_start_date, dfs_time, dfs_date,
+         surveillance_1_date:surveillance_12_date) |>
+  mutate(across(.cols = dfs_date:surveillance_12_date, 
+                .fns = ~ as_date(.x))) |>
+  select(pts_id, window_start_date, dfs_date, dfs_time)
+
+datatable(tab, filter = "top")
+
+dt_survival <- dt_survival |>
+  filter(dfs_time > 0)
+
+aux <- dt |>
+  select(pts_id, ct_dna_surveillance_available,
+         window_start_date, dfs_date,
+         surveillance_1_date:surveillance_12_date) |>
+  mutate(across(.cols = surveillance_1_date:surveillance_12_date, 
+                .fns = ~ .x - window_start_date)) |>
+  mutate(across(.cols = surveillance_1_date:surveillance_12_date, 
+                .fns = ~ .x < 0)) |>
+  rowwise() |>
+   mutate(sum_neg = 
+           sum(c_across(surveillance_1_date:surveillance_12_date),
+               na.rm = TRUE))  |>
+  select(pts_id, sum_neg)
+
+tab <- left_join(aux, dt) |>
+  filter(sum_neg > 0) |>
+  select(pts_id, sum_neg, window_start_date,
+         surveillance_1_date:surveillance_12_date) |>
+  mutate(across(.cols = window_start_date:surveillance_12_date, 
+                .fns = ~ as_date(.x))) 
+
+datatable(tab, filter = "top")
+
+aux <- dt |>
+  select(pts_id, ct_dna_surveillance_available,
+         window_start_date, dfs_date,
+         surveillance_1_date:surveillance_12_date) |>
+  mutate(across(.cols = dfs_date:surveillance_12_date, 
+                .fns = ~ .x - window_start_date)) |>
+  mutate(across(.cols = surveillance_2_date:surveillance_12_date,
+                .fns = ~ dfs_date < .x)) |>
+  rowwise() |>
+  mutate(n_biomarker_after_event = sum(c_across(surveillance_2_date:
+                              surveillance_12_date), 
+                   na.rm = TRUE)) |>
+  mutate(across(.cols = surveillance_1_date:surveillance_12_date,
+                .fns = ~ !is.na(.x))) |>
+  mutate(total_biomarker = sum(c_across(surveillance_2_date:
+                              surveillance_12_date), 
+                   na.rm = TRUE)) |>
+  select(pts_id, n_biomarker_after_event, total_biomarker)
+
+temp <- aux |> 
+  select(-pts_id) |>
+  group_by(n_biomarker_after_event, total_biomarker) |>
+  dplyr::summarize(freq = n())
+
+
+tab <- left_join(aux, dt) |>
+  select(pts_id, n_biomarker_after_event, total_biomarker, 
+         dfs_date,
+         surveillance_2_date:surveillance_12_date) |>
+  mutate(across(.cols = dfs_date:surveillance_12_date, 
+                .fns = ~ as_date(.x))) |>
+  filter(n_biomarker_after_event > 0)
+datatable(tab, filter = "top")
+
+aux <- tmerge(data1 = dt_survival, 
+              data2 = dt_survival,
+              id = pts_id, 
+              dfs_event = event(dfs_time, dfs_event))
+dt_final <- tmerge(data1 = aux, 
+                   data2 = dt_biomarker,
+                   id = pts_id, 
+                   biomarker_status = 
+                     tdc(biomarker_time, biomarker_status))
+
+datatable(dt_final, filter = "top")
+
+# Syntax if there is not time-dependent covariate
+# fit <- coxph(Surv(dfs_time, dfs_event) ~ biomarker_status,
+#              data = dt_final)
+# summary(fit)
+
+fit <- coxph(Surv(tstart, tstop, dfs_event) ~ biomarker_status,
+             data = dt_final)
+summary(fit)
+```
+
+#Heatmap with clinical and genomic factors - VH Cohort
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$histology_subtype=="VH",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_data <- circ_data %>% arrange(cStage.Group)
+circ_datadf <- as.data.frame(circ_data)
+
+ha <- HeatmapAnnotation(
+  cStage.Group = circ_data$cStage.Group,
+  Gender = circ_data$Gender,
+  Age.Group = circ_data$Age.Group,
+  NAC = circ_data$NAC,
+  NAC.Details = circ_data$NAC.Details,
+  pStage.Group = circ_data$pStage.Group,
+  TNM.Detailed = circ_data$TNM.Detailed,
+  pN.Group = circ_data$pN.Group,
+  ACT.Details = circ_data$ACT.Details,
+  MSI.status = circ_data$MSI.status,
+  TMB.status = circ_data$TMB.status,
+  Urothelial = circ_data$Urothelial,
+  Squamous = circ_data$Squamous,
+  Adenocarcinoma = circ_data$Adenocarcinoma,
+  Lipoid = circ_data$Lipoid,
+  Sarcomatoid = circ_data$Sarcomatoid,
+  GiantCell = circ_data$GiantCell,
+  Nested = circ_data$Nested,
+  Micropapillary = circ_data$Micropapillary,
+  Neuroendocrine = circ_data$Neuroendocrine,
+  Plasmacytoid = circ_data$Plasmacytoid,
+  Mucinous = circ_data$Mucinous,
+  Microcystic = circ_data$Microcystic,
+  Glandular = circ_data$Glandular,
+  ClearCell = circ_data$ClearCell,
+  TP53 = circ_data$TP53,
+  ARID1A = circ_data$ARID1A,
+  KDM6A = circ_data$KDM6A,
+  ERBB2 = circ_data$ERBB2,
+  PIK3CA = circ_data$PIK3CA,
+  RB1 = circ_data$RB1,
+  RYR2 = circ_data$RYR2,
+  ANK2 = circ_data$ANK2,
+  ERCC2 = circ_data$ERCC2,
+  AKAP9 = circ_data$AKAP9,
+  CREBBP = circ_data$CREBBP,
+  MUC4 = circ_data$MUC4,
+  KIAA2026 = circ_data$KIAA2026,
+  NSD1 = circ_data$NSD1,
+  ZNF469 = circ_data$ZNF469,
+  APC2 = circ_data$APC2,
+  COL6A5 = circ_data$COL6A5,
+  DMD = circ_data$DMD,
+  DNAH14 = circ_data$DNAH14,
+  EP300 = circ_data$EP300,
+  FSIP2 = circ_data$FSIP2,
+  MYCBP2 = circ_data$MYCBP2,
+  SPTAN1 = circ_data$SPTAN1,
+  DYNC1H1 = circ_data$DYNC1H1,
+  ZFHX4 = circ_data$ZFHX4,
+  MRD_anytimepreSx = circ_data$MRD_anytimepreSx,
+  MRD_postSx.MRD.Window = circ_data$MRD_postSx.MRD.Window,
+  MRD.Surveillance.Window = circ_data$MRD.Surveillance.Window,
+  MRD_anytimeSx = circ_data$MRD_anytimeSx,
+  RecStatus = circ_data$RecStatus,
+  VitalStatus = circ_data$VitalStatus,
+  
+  col = list(cStage.Group = c("1" = "seagreen1", "2" = "khaki", "3" = "orange", "4" = "purple"),
+             Gender = c("Female" = "goldenrod" , "Male" = "blue4"),
+             Age.Group = c("1" = "#C1211A", "0" ="#008BCE"),
+             NAC = c("1" = "darkmagenta", "0" = "gray"),
+             NAC.Details = c("ChemoRT" = "coral", "Chemo" ="darkgreen", "ChemoIO" = "yellow3"),
+             pStage.Group = c("1" = "seagreen2", "2" = "cornflowerblue", "3" ="darkmagenta"),
+             TNM.Detailed = c("Tis/T1N0M0" = "lightblue", "T2-T4N0M0" ="orange", "TxN1/N2M0/M1" = "brown" ),
+             pN.Group = c("0" = "yellow", "1" ="brown"),
+             ACT.Details = c("Surveillance" = "lightblue", "Chemo" = "orange2", "IO" ="khaki", "ChemoIO" = "brown2"),
+             MSI.status = c("MSS" = "grey", "MSI-Hi" ="black"),
+             TMB.status = c("TMB-Low" = "darkgreen", "TMB-High" ="darkmagenta"),
+             Urothelial = c("FALSE" = "grey", "TRUE" ="black"),
+             Squamous = c("FALSE" = "grey", "TRUE" ="black"),
+             Adenocarcinoma = c("FALSE" = "grey", "TRUE" ="black"),
+             Lipoid = c("FALSE" = "grey", "TRUE" ="black"),
+             Sarcomatoid = c("FALSE" = "grey", "TRUE" ="black"),
+             GiantCell = c("FALSE" = "grey", "TRUE" ="black"),
+             Nested = c("FALSE" = "grey", "TRUE" ="black"),
+             Micropapillary = c("FALSE" = "grey", "TRUE" ="black"),
+             Neuroendocrine = c("FALSE" = "grey", "TRUE" ="black"),
+             Plasmacytoid = c("FALSE" = "grey", "TRUE" ="black"),
+             Mucinous = c("FALSE" = "grey", "TRUE" ="black"),
+             Microcystic = c("FALSE" = "grey", "TRUE" ="black"),
+             Glandular = c("FALSE" = "grey", "TRUE" ="black"),
+             ClearCell = c("FALSE" = "grey", "TRUE" ="black"),
+             TP53 = c("WT" = "grey", "Mut" ="black"),
+             ARID1A = c("WT" = "grey", "Mut" ="black"),
+             KDM6A = c("WT" = "grey", "Mut" ="black"),
+             ERBB2 = c("WT" = "grey", "Mut" ="black"),
+             PIK3CA = c("WT" = "grey", "Mut" ="black"),
+             RB1 = c("WT" = "grey", "Mut" ="black"),
+             RYR2 = c("WT" = "grey", "Mut" ="black"),
+             ANK2 = c("WT" = "grey", "Mut" ="black"),
+             ERCC2 = c("WT" = "grey", "Mut" ="black"),
+             AKAP9 = c("WT" = "grey", "Mut" ="black"),
+             CREBBP = c("WT" = "grey", "Mut" ="black"),
+             MUC4 = c("WT" = "grey", "Mut" ="black"),
+             KIAA2026 = c("WT" = "grey", "Mut" ="black"),
+             NSD1 = c("WT" = "grey", "Mut" ="black"),
+             ZNF469 = c("WT" = "grey", "Mut" ="black"),
+             APC2 = c("WT" = "grey", "Mut" ="black"),
+             COL6A5 = c("WT" = "grey", "Mut" ="black"),
+             DMD = c("WT" = "grey", "Mut" ="black"),
+             DNAH14 = c("WT" = "grey", "Mut" ="black"),
+             EP300 = c("WT" = "grey", "Mut" ="black"),
+             FSIP2 = c("WT" = "grey", "Mut" ="black"),
+             MYCBP2 = c("WT" = "grey", "Mut" ="black"),
+             SPTAN1 = c("WT" = "grey", "Mut" ="black"),
+             DYNC1H1 = c("WT" = "grey", "Mut" ="black"),
+             ZFHX4 = c("WT" = "grey", "Mut" ="black"),
+             MRD_anytimepreSx = c("1" = "red3", "0" ="blue"),
+             MRD_postSx.MRD.Window = c("1" = "red3", "0" ="blue"),
+             MRD.Surveillance.Window = c("1" = "red3", "0" ="blue"),
+             MRD_anytimeSx = c("1" = "red3", "0" ="blue"),
+             RecStatus = c("1" = "red3", "0" ="blue"),
+             VitalStatus = c("1" = "black", "0" ="grey")
+  )
+)
+ht <- Heatmap(matrix(nrow = 0, ncol = length(circ_data$Gender)),show_row_names = FALSE,cluster_rows = F,cluster_columns = FALSE, top_annotation = ha)
+pdf("heatmap.pdf",width = 7, height = 7)
+draw(ht, annotation_legend_side = "bottom")
+dev.off()
+```
+
+#DFS by ctDNA at the MRD window - VH Cohort
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$histology_subtype=="VH",]
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~MRD_postSx.MRD.Window, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ MRD_postSx.MRD.Window, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = FALSE, conf.int = FALSE, risk.table = TRUE, break.time.by=6, palette=c("blue","red"), title="DFS - ctDNA post-RC MRD Window", ylab= "Disease Free Survival", xlab="Months from cystectomy", legend.labs=c("ctDNA Negative", "ctDNA Positive"), legend.title="")
+summary(KM_curve, times= c(0, 12))
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels=c("0","1"))
+cox_fit <- coxph(surv_object ~ MRD_postSx.MRD.Window, data=circ_data) 
+ggforest(cox_fit,data = circ_data) 
+summary(cox_fit)
+cox_fit_summary <- summary(cox_fit)
+
+# Extract values for HR, 95% CI, and p-value
+HR <- cox_fit_summary$coefficients[2]
+lower_CI <- cox_fit_summary$conf.int[3]
+upper_CI <- cox_fit_summary$conf.int[4]
+p_value <- cox_fit_summary$coefficients[5]
+label_text <- paste0("HR = ", round(HR, 2), " (", round(lower_CI, 2), "-", round(upper_CI, 2), "); p = ", round(p_value, 3))
+print(label_text)
+
+# Fisher plot for ctDNA at the MRD Window (1-12 weeks post-RC) and Rec Status
+circ_data$MRD_postSx.MRD.Window <- factor(circ_data$MRD_postSx.MRD.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$RecStatus <- factor(circ_data$RecStatus, levels = c("0", "1"), labels = c("No Recurrence", "Recurrence"))
+contingency_table <- table(circ_data$MRD_postSx.MRD.Window, circ_data$RecStatus)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA MRD Window (n = 29)", x = "ctDNA", y = "Patients (%)", fill = "Recurrence") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("No Recurrence" = "lightblue3", "Recurrence" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+```
+
+
+
+#DFS by ctDNA at the Surveillance window - VH Cohort
+```{r}
+rm(list=ls())
+setwd("~/Downloads")
+circ_data <- read.csv("RWE_MIBC Combined.csv")
+circ_data <- circ_data[circ_data$ctDNA.Available=="TRUE",]
+circ_data <- circ_data[circ_data$histology_subtype=="VH",]
+circ_data <- subset(circ_data, !is.na(MRD.Surveillance.Window))
+circ_data <- circ_data[circ_data$FU_months>=3,]
+circ_datadf <- as.data.frame(circ_data)
+
+survfit(Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)~MRD.Surveillance.Window, data = circ_data)
+surv_object <-Surv(time = circ_data$RFS_months, event = circ_data$RecStatus)
+KM_curve <- survfit(surv_object ~ MRD.Surveillance.Window, data = circ_data,conf.int=0.95,conf.type="log-log") 
+ggsurvplot(KM_curve, data = circ_data, pval = TRUE, conf.int = FALSE, risk.table = TRUE, break.time.by=6, palette=c("blue","red"), title="DFS - ctDNA Surveillance Window", ylab= "Disease Free Survival", xlab="Months from cystectomy", legend.labs=c("ctDNA Negative", "ctDNA Positive"), legend.title="")
+summary(KM_curve, times= c(24))
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels=c("0","1"))
+cox_fit <- coxphf(surv_object ~ MRD.Surveillance.Window, data=circ_data) 
+summary(cox_fit)
+
+# Fisher plot for ctDNA at the MRD Window (1-12 weeks post-RC) and Rec Status
+circ_data$MRD.Surveillance.Window <- factor(circ_data$MRD.Surveillance.Window, levels = c("0", "1"), labels = c("ctDNA(-)", "ctDNA(+)"))
+circ_data$RecStatus <- factor(circ_data$RecStatus, levels = c("0", "1"), labels = c("No Recurrence", "Recurrence"))
+contingency_table <- table(circ_data$MRD.Surveillance.Window, circ_data$RecStatus)
+chi_square_test <- chisq.test(contingency_table)
+print(chi_square_test)
+fisher_exact_test <- fisher.test(contingency_table)
+print(fisher_exact_test)
+print(contingency_table)
+table_df <- as.data.frame(contingency_table)
+table_df$Total <- ave(table_df$Freq, table_df$Var1, FUN = sum)
+table_df$Percentage <- table_df$Freq / table_df$Total
+table_df$MiddlePercentage <- table_df$Percentage / 2
+ggplot(table_df, aes(x = Var1, y = Percentage, fill = Var2)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(y = MiddlePercentage, label = Freq), position = "stack", color = "black", vjust = 1.5, size = 7) +
+  theme_minimal() +
+  labs(title = "ctDNA Surveillance Window (n = 29)", x = "ctDNA", y = "Patients (%)", fill = "Recurrence") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  scale_fill_manual(values = c("No Recurrence" = "lightblue3", "Recurrence" = "red")) + # define custom colors
+  theme(axis.text.x = element_text(angle = 0, hjust = 1.5, size = 14), # increase x-axis text size
+        axis.text.y = element_text(size = 14, color = "black"), # increase y-axis text size
+        axis.title.x = element_text(size = 14, color = "black"), # increase x-axis label size
+        axis.title.y = element_text(size = 14, color = "black"), # increase y-axis label size
+        legend.text = element_text(size = 12, color = "black"))  # increase Recurrence label size
+```
+
